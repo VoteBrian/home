@@ -1,0 +1,26 @@
+html { font-size: 100%; overflow-y: scroll; }
+body { color: #323232; background-color: #F4F4F4; margin: 0em; font-family: Roboto, sans-serif; font-weight: 400; }
+
+canvas { display: none; }
+
+header { color: #F4F4F4; background-color: #323232; padding: 0.5em; font-weight: 300; }
+#content { padding: 0 1em 0 1em; }
+
+#name { font-size: 3em; }
+#contact_info { font-size: 1em; }
+
+.section { padding: 0 0 1em 0; }
+.section_title { font-size: 1.75em; margin-bottom: -0.25em; }
+.subsection {}
+.subsection_title { font-size: 1.5em; }
+.subsection_dates { font-style: italic; }
+.subsection_content { font-size: 1.15em; padding: 0 0 0 0em; }
+.subsection_item { font-size: 1.15em; padding: 0 0 0.5em 0em; }
+.subsection_item_title { font-weight: bold; }
+
+.clear { clear: both; }
+
+hr { background-color: #33B5E5; color: #33B5E5; border-color: #33B5E5; }
+
+a:link { color: #33B5E5; text-decoration: none; }
+a:visited { color: #33B5E5; text-decoration: none; }
