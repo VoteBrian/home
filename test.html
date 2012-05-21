@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+        <link rel="stylesheet" type="text/css" href="css/mobile.css" media="screen, handheld" />
+        <link rel="stylesheet" type="text/css" href="css/style.css" media="screen and (min-width: 40.5em)" />
+        <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:regular,medium,thin,italic,mediumitalic">
+        <title>VoteBrian</title>
+
+        <script type="text/javascript" src="js/libs/glMatrix-0.9.5.min.js"></script>
+        <script type="text/javascript" src="js/libs/webgl-utils.js"></script>
+        <script id="shader-fs" type="x-shader/x-fragment">
+            precision mediump float;
+
+            varying lowp vec4 vColor;
+
+            void main(void) {
+                gl_FragColor = vColor;
+            }
+        </script>
+
+        <script id="shader-vs" type="x-shader/x-vertex">
+            attribute vec3 aVertexPosition;
+            attribute vec4 aVertexColor;
+
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
+
+            varying lowp vec4 vColor;
+
+            void main(void) {
+                gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+                vColor = aVertexColor;
+            }
+        </script>
+
+    </head>
+    <body>
+        <canvas id='bg' width='100%' height='100%'></canvas>
+
+        <!-- Start Content -->
+        <div id="header">
+            <div id="name">VoteBrian</div>
+        </div>
+
+        <div id="content">
+            <div class="section">
+                <div class="section_title">Hello</div>
+                <hr>
+                <div class="subsection">
+                    <div class="clear"></div>
+                    <div class="subsection_content">Sorry if this place is a mess. I recently switched hosting companies, and I decided to take the opportunity to rebuild everything from scratch. Below are some things you might find interesting.</div>
+                </div> <!-- subsection -->
+            </div> <!-- section -->
+
+            <div class="section">
+                <div class="section_title">Projects</div>
+                <hr>
+                <div class="subsection">
+                    <div class="subsection_title">March Madness Suicide Pool</div>
+                    <div class="clear"></div>
+                    <div class="subsection_item">Every year, my buddy and I run the greatest of all March Madness "office" <a href="http://ncaa.votebrian.net">pools</a>. The pool has been going strong for 5 years and has gotten bigger each year. It was written in an unholy mix of html, php, sql, and javascript. While it has served us well, I think it's time for a rewrite.</div>
+                </div> <!-- subsection -->
+
+                <div class="subsection">
+                    <div class="subsection_title">Android Development</div>
+                    <div class="clear"></div>
+                    <div class="subsection_item">I've got a couple apps on the Google Play Store.  <a href="https://play.google.com/store/apps/developer?id=VoteBrian">Go</a> check them out.</div>
+                </div> <!-- subsection -->
+
+                <div class="subsection">
+                    <div class="subsection_title">Code Samples</div>
+                    <div class="clear"></div>
+                    <div class="subsection_item">I'm working on moving everything to github and making most of it public.  There's not much <a href="https://github.com/VoteBrian">there</a> right now, but I'm slowly building it up.</div>
+                </div> <!-- subsection -->
+            </div> <!-- section -->
+
+            <div class="section">
+                <div class="section_title">Resume</div>
+                <hr>
+                <div class="subsection">
+                    <div class="clear"></div>
+                    <div class="subsection_content">If you do something cool, you should consider offering me a job.  <a href="http://www.votebrian.net/resume">Here's</a> why.</div>
+                </div> <!-- subsection -->
+            </div> <!-- section -->
+        </div> <!-- content -->
+
+
+        <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="js/libs/jquery-1.6.2.min.js"><\/script>')</script>
+
+        <script type="text/javascript">
+            /* --
+             * GLOBAL VARIABLES
+             */
+            var gl;
+            var mCanvas;
+            var mWidth;
+            var mHeight;
+            var mShaderProgram;
+
+            var mvMatrix = mat4.create();
+            var pMatrix = mat4.create();
+            var mvMatrixStack = [];
+
+            var vectorBuffer;
+            var frameVectorBuffer;
+            var whiteColorBuffer;
+            var darkBlueColorBuffer;
+            var lightBlueColorBuffer;
+            var frameColorBuffer;
+
+            var cubes = [];
+            var rectangles = [];
+            var mNumCubes;
+            var mNumRows;
+            var mNumCols;
+            var mNumRect;
+
+            var mMouseX;
+            var mMouseY;
+            var mCurrRow;
+            var mCurrCol;
+
+            var mPrevTime = 0;
+
+            var DOWN = 0;
+            var MID = 1;
+            var UP = 2;
+
+
+            $(document).ready(function() {
+                drawBG();
+            });
+
+            $(document).mousemove(function(event) {
+                mMouseX = event.pageX;
+                mMouseY = event.pageY;
+
+                mCurrRow = findRow(mMouseY);
+                mCurrCol = findCol(mMouseX);
+
+                for(var i=0; i < mNumCubes; i++) {
+                    if((cubes[i].row == mCurrRow) || (cubes[i].col == mCurrCol)) {
+                        cubes[i].stage = UP;
+                    } else if( (Math.abs(cubes[i].row - mCurrRow) < 2) || (Math.abs(cubes[i].col - mCurrCol) < 2) ) {
+                        cubes[i].stage = MID;
+                    } else {
+                        cubes[i].stage = DOWN;
+                    }
+                }
+            });
+
+            function findRow(y) {
+                return Math.floor(mMouseY*mNumRows/mHeight);
+            }
+
+            function findCol(x) {
+                return Math.floor(mMouseX*mNumCols/mWidth);
+            }
+
+            function drawBG() {
+                mWidth = window.innerWidth;
+                mHeight = window.innerHeight;
+                mCanvas = document.getElementById('bg');
+
+                initGL();
+                initShaders();
+                initBuffers();
+                initCubes();
+
+                gl.clearColor(1.0, 1.0, 1.0, 1.0);
+
+                gl.enable(gl.DEPTH_TEST);
+                gl.depthFunc(gl.LESS);
+
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                gl.enable(gl.BLEND);
+
+                // loop the draw function
+                tick();
+            }
+
+            function tick() {
+                requestAnimFrame(tick);
+                draw();
+            }
+
+            function draw() {
+                gl.viewport(0, 0, mWidth, mHeight);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                fovY = 90;
+
+                mat4.perspective(fovY, mWidth/mHeight, 0.1, 40, pMatrix);
+
+                for(var i=0; i < mNumCubes; i++) {
+                    cubes[i].draw();
+                }
+            }
+
+            function initGL() {
+                try {
+                    gl = mCanvas.getContext('experimental-webgl')
+                    gl.canvas.width = mWidth;
+                    gl.canvas.height = mHeight;
+
+                    gl.viewportWidth = mWidth;
+                    gl.viewportHeight = mHeight;
+                } catch (e) {
+                    alert(e);
+                }
+
+                if(!gl) {
+                    alert("It seems your browser doesn't support WebGL.  :(")
+                }
+            }
+
+            function initCubes() {
+                mNumRows = 20;
+                mNumCols = Math.floor(mNumRows*mWidth/mHeight);
+                mNumCubes = mNumRows * mNumCols;
+
+                for(var col=0; col < mNumCols; col++) {
+                    for(var row=0; row < mNumRows; row++) {
+                        var centX = -1*mNumCols/2 + col + 0.5;
+                        var centY = mNumRows/2 - row - 0.5;
+                        var centZ = -10.5;
+                        cubes.push( new Cube( centX, centY, centZ, row, col) );
+                    }
+                }
+            }
+
+            function Cube(x, y, z, r, c) {
+                this.centX = x;
+                this.centY = y;
+                this.centZ = z;
+
+                this.row = r;
+                this.col = c;
+
+                this.stage = DOWN;
+            }
+
+            Cube.prototype.draw = function() {
+                mvPushMatrix();
+
+                mat4.identity(mvMatrix);
+
+                switch(this.stage) {
+                    case DOWN:
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ]);
+                        gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, whiteColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, whiteColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
+                    case MID:
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.25]);
+                        gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
+                    case UP:
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.5]);
+                        gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, darkBlueColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
+                }
+
+                setMatrixUniforms();
+
+                gl.drawArrays(gl.TRIANGLES, 0, vectorBuffer.numItems);
+
+
+                mat4.identity(mvMatrix);
+                switch(this.stage) {
+                    case DOWN:
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ]);
+                        gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
+                    case MID:
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.25]);
+                        gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
+                    case UP:
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.5]);
+                        gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
+                }
+
+                setMatrixUniforms();
+                gl.lineWidth(1);
+                gl.drawArrays(gl.LINES, 0, frameVectorBuffer.numItems);
+
+                mvPopMatrix();
+            }
+
+            function Rect(x, y, z, w, h) {
+                this.rectVectorBuffer;
+                this.rectVertices;
+
+                this.rectColorBuffer;
+                this.rectColors;
+
+                this.centX = x;
+                this.centY = y;
+                this.centZ = z;
+                this.rectW = w;
+                this.rectH = h;
+
+                this.initRect(w, h);
+            }
+
+            Rect.prototype.initRect = function(w, h) {
+                this.rectVertices = [
+                     w/2,  h/2, 0,
+                    -w/2,  h/2, 0,
+                    -w/2,  h/2, 0,
+                    -w/2, -h/2, 0,
+                    -w/2, -h/2, 0,
+                     w/2, -h/2, 0,
+                     w/2, -h/2, 0,
+                     w/2,  h/2, 0
+                ];
+
+                this.rectVectorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectVectorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.rectVertices), gl.STATIC_DRAW);
+
+                this.rectVectorBuffer.itemSize = 3;
+                this.rectVectorBuffer.numItems = 8;
+
+                this.rectColors = [
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0
+                ];
+
+                this.rectColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.rectColors), gl.STATIC_DRAW);
+
+                this.rectColorBuffer.itemSize = 4;
+                this.rectColorBuffer.numItems = 8;
+            }
+
+            Rect.prototype.draw = function() {
+                mvPushMatrix();
+
+                mat4.identity(mvMatrix);
+                mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ]);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectVectorBuffer);
+                gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, this.rectVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectColorBuffer);
+                gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, this.rectColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                setMatrixUniforms();
+
+                gl.drawArrays(gl.LINES, 0, this.rectVectorBuffer.numItems);
+
+                mvPopMatrix();
+            }
+
+            function initShaders() {
+                var fragmentShader = getShader(gl, 'shader-fs');
+                var vertexShader = getShader(gl, 'shader-vs');
+
+                mShaderProgram = gl.createProgram();
+                gl.attachShader(mShaderProgram, fragmentShader);
+                gl.attachShader(mShaderProgram, vertexShader);
+                gl.linkProgram(mShaderProgram);
+
+                if(!gl.getProgramParameter(mShaderProgram, gl.LINK_STATUS)) {
+                    alert('Could not initialize shaders');
+                }
+
+                gl.useProgram(mShaderProgram);
+
+                mShaderProgram.vertexPositionAttribute = gl.getAttribLocation(mShaderProgram, 'aVertexPosition');
+                gl.enableVertexAttribArray(mShaderProgram.vertexPositionAttribute);
+
+                mShaderProgram.vertexColorAttribute = gl.getAttribLocation(mShaderProgram, 'aVertexColor');
+                gl.enableVertexAttribArray(mShaderProgram.vertexColorAttribute);
+
+                mShaderProgram.pMatrixUniform = gl.getUniformLocation(mShaderProgram, 'uPMatrix');
+                mShaderProgram.mvMatrixUniform = gl.getUniformLocation(mShaderProgram, 'uMVMatrix');
+            }
+
+            function getShader(gl, id) {
+                var shaderScript = document.getElementById(id);
+                if(!shaderScript) {
+                    return null;
+                }
+
+                var str = "";
+                var k = shaderScript.firstChild;
+                while(k) {
+                    if(k.nodeType==3) {
+                        str += k.textContent;
+                    }
+                    k = k.nextSibling;
+                }
+
+                var shader;
+                if(shaderScript.type == 'x-shader/x-fragment') {
+                    shader = gl.createShader(gl.FRAGMENT_SHADER);
+                } else if(shaderScript.type == 'x-shader/x-vertex') {
+                    shader = gl.createShader(gl.VERTEX_SHADER);
+                } else {
+                    return null;
+                }
+
+                gl.shaderSource(shader, str);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    alert(gl.getShaderInfoLog(shader));
+                    return null;
+                }
+
+                return shader;
+            }
+
+            function setMatrixUniforms() {
+                gl.uniformMatrix4fv(mShaderProgram.pMatrixUniform, false, pMatrix);
+                gl.uniformMatrix4fv(mShaderProgram.mvMatrixUniform, false, mvMatrix);
+            }
+
+            function mvPushMatrix() {
+                var copy = mat4.create();
+                mat4.set(mvMatrix, copy);
+                mvMatrixStack.push(copy);
+            }
+
+            function mvPopMatrix() {
+                if (mvMatrixStack.length == 0) {
+                    throw "Invalid popMatrix!";
+                }
+                mvMatrix = mvMatrixStack.pop();
+            }
+
+            function initBuffers() {
+                var vertices = [
+                     0.30,  0.30,  0.30,  // front
+                    -0.30,  0.30,  0.30,
+                    -0.30, -0.30,  0.30,
+
+                    -0.30, -0.30,  0.30,
+                     0.30, -0.30,  0.30,
+                     0.30,  0.30,  0.30,
+
+                    -0.30,  0.30, -0.30,  // back
+                     0.30,  0.30, -0.30,
+                     0.30, -0.30, -0.30,
+
+                     0.30, -0.30, -0.30,
+                    -0.30, -0.30, -0.30,
+                    -0.30,  0.30, -0.30,
+
+                    -0.30,  0.30,  0.30,  // top
+                     0.30,  0.30,  0.30,
+                     0.30,  0.30, -0.30,
+
+                     0.30,  0.30, -0.30,
+                    -0.30,  0.30, -0.30,
+                    -0.30,  0.30,  0.30,
+
+                     0.30,  0.30,  0.30,  // right
+                     0.30, -0.30,  0.30,
+                     0.30, -0.30, -0.30,
+
+                     0.30, -0.30, -0.30,
+                     0.30,  0.30, -0.30,
+                     0.30,  0.30,  0.30,
+
+                     0.30, -0.30,  0.30,  // bottom
+                    -0.30, -0.30,  0.30,
+                    -0.30, -0.30, -0.30,
+
+                    -0.30, -0.30, -0.30,
+                     0.30, -0.30, -0.30,
+                     0.30, -0.30,  0.30,
+
+                    -0.30, -0.30,  0.30,  // left
+                    -0.30,  0.30,  0.30,
+                    -0.30,  0.30, -0.30,
+
+                    -0.30,  0.30, -0.30,
+                    -0.30, -0.30, -0.30,
+                    -0.30, -0.30,  0.30
+
+                ];
+                vectorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+                vectorBuffer.itemSize = 3;
+                vectorBuffer.numItems = 36;
+
+
+                var frame = [
+                     0.30,  0.30,  0.30,
+                    -0.30,  0.30,  0.30,
+
+                    -0.30,  0.30,  0.30,
+                    -0.30, -0.30,  0.30,
+
+                    -0.30, -0.30,  0.30,
+                     0.30, -0.30,  0.30,
+
+                     0.30, -0.30,  0.30,
+                     0.30,  0.30,  0.30,
+
+
+                     0.30,  0.30,  0.30,
+                     0.30,  0.30, -0.30,
+
+                     0.30,  0.30, -0.30,
+                    -0.30,  0.30, -0.30,
+
+
+                    -0.30,  0.30,  0.30,
+                    -0.30,  0.30, -0.30,
+
+                    -0.30,  0.30, -0.30,
+                    -0.30, -0.30, -0.30,
+
+
+                    -0.30, -0.30,  0.30,
+                    -0.30, -0.30, -0.30,
+
+                    -0.30, -0.30, -0.30,
+                     0.30, -0.30, -0.30,
+
+
+                     0.30, -0.30,  0.30,
+                     0.30, -0.30, -0.30,
+
+                     0.30, -0.30, -0.30,
+                     0.30,  0.30, -0.30,
+
+                ];
+                frameVectorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(frame), gl.STATIC_DRAW);
+
+                frameVectorBuffer.itemSize = 3;
+                frameVectorBuffer.numItems = 24;
+
+
+                var white = [
+                     0.95, 0.95, 0.95, 1.0,  // front
+                     0.95, 0.95, 0.95, 1.0,
+                     0.95, 0.95, 0.95, 1.0,
+
+                     0.95, 0.95, 0.95, 1.0,
+                     0.95, 0.95, 0.95, 1.0,
+                     0.95, 0.95, 0.95, 1.0,
+
+                     0.70, 0.70, 0.70, 1.0,  // back
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+
+                     0.95, 0.95, 0.95, 1.0,  // top
+                     0.95, 0.95, 0.95, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+                     0.95, 0.95, 0.95, 1.0,
+
+                     0.95, 0.95, 0.95, 1.0,  // right
+                     0.95, 0.95, 0.95, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+                     0.95, 0.95, 0.95, 1.0,
+
+                     0.95, 0.95, 0.95, 1.0,  // bottom
+                     0.95, 0.95, 0.95, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+                     0.95, 0.95, 0.95, 1.0,
+
+                     0.95, 0.95, 0.95, 1.0,  // left
+                     0.95, 0.95, 0.95, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+
+                     0.70, 0.70, 0.70, 1.0,
+                     0.70, 0.70, 0.70, 1.0,
+                     0.95, 0.95, 0.95, 1.0
+                ];
+                whiteColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, whiteColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white), gl.STATIC_DRAW);
+
+                whiteColorBuffer.itemSize = 4;
+                whiteColorBuffer.numItems = 36;
+
+
+                var dark_blue = [
+                     0.20, 0.71, 0.89, 1.0,  // front
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,  // back
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,  // top
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,  // right
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,  // bottom
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,  // left
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0,
+                     0.20, 0.71, 0.89, 1.0
+                ];
+                darkBlueColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, darkBlueColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dark_blue), gl.STATIC_DRAW);
+
+                darkBlueColorBuffer.itemSize = 4;
+                darkBlueColorBuffer.numItems = 36;
+
+
+                var light_blue = [
+                     0.44, 0.79, 0.92, 1.0,  // front
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,  // back
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,  // top
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,  // right
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,  // bottom
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,  // left
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0,
+                     0.44, 0.79, 0.92, 1.0
+                ];
+                lightBlueColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(light_blue), gl.STATIC_DRAW);
+
+                lightBlueColorBuffer.itemSize = 4;
+                lightBlueColorBuffer.numItems = 36;
+
+
+                var frameColor = [
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                ];
+                frameColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(frameColor), gl.STATIC_DRAW);
+
+                frameColorBuffer.itemSize = 4;
+                frameColorBuffer.numItems = 24;
+            }
+        </script>
+    </body>
+</html>
