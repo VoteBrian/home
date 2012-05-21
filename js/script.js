@@ -11,7 +11,7 @@ var mvMatrix = mat4.create();
 var pMatrix = mat4.create();
 
 function drawBG() {
-    drawSquares();
+    drawCircles();
 }
 
 function drawSquares() {
