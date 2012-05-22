@@ -45,48 +45,6 @@
             <div id="name">VoteBrian</div>
         </div>
 
-        <div id="content">
-            <div class="section">
-                <div class="section_title">Hello</div>
-                <hr>
-                <div class="subsection">
-                    <div class="clear"></div>
-                    <div class="subsection_content">Sorry if this place is a mess. I recently switched hosting companies, and I decided to take the opportunity to rebuild everything from scratch. Below are some things you might find interesting.</div>
-                </div> <!-- subsection -->
-            </div> <!-- section -->
-
-            <div class="section">
-                <div class="section_title">Projects</div>
-                <hr>
-                <div class="subsection">
-                    <div class="subsection_title">March Madness Suicide Pool</div>
-                    <div class="clear"></div>
-                    <div class="subsection_item">Every year, my buddy and I run the greatest of all March Madness "office" <a href="http://ncaa.votebrian.net">pools</a>. The pool has been going strong for 5 years and has gotten bigger each year. It was written in an unholy mix of html, php, sql, and javascript. While it has served us well, I think it's time for a rewrite.</div>
-                </div> <!-- subsection -->
-
-                <div class="subsection">
-                    <div class="subsection_title">Android Development</div>
-                    <div class="clear"></div>
-                    <div class="subsection_item">I've got a couple apps on the Google Play Store.  <a href="https://play.google.com/store/apps/developer?id=VoteBrian">Go</a> check them out.</div>
-                </div> <!-- subsection -->
-
-                <div class="subsection">
-                    <div class="subsection_title">Code Samples</div>
-                    <div class="clear"></div>
-                    <div class="subsection_item">I'm working on moving everything to github and making most of it public.  There's not much <a href="https://github.com/VoteBrian">there</a> right now, but I'm slowly building it up.</div>
-                </div> <!-- subsection -->
-            </div> <!-- section -->
-
-            <div class="section">
-                <div class="section_title">Resume</div>
-                <hr>
-                <div class="subsection">
-                    <div class="clear"></div>
-                    <div class="subsection_content">If you do something cool, you should consider offering me a job.  <a href="http://www.votebrian.net/resume">Here's</a> why.</div>
-                </div> <!-- subsection -->
-            </div> <!-- section -->
-        </div> <!-- content -->
-
 
         <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
@@ -131,6 +89,18 @@
             var MID = 1;
             var UP = 2;
 
+            var NONE = 0;
+            var POP = 1;
+            var WAVE = 2
+
+            var popTime = 500;       // time in milliseconds a cube stays highlighted after being popped.
+            var maxHeight = 0.5;     // the highest a cube is moved up when popped or waved.
+
+            var waveStartTime = 0;
+            var waveDuration = 1000;  // time it takes for the wave to cross the screen
+            var waveTime = 500;      // time a cube stays highlighted after being waved
+            var wavePeriod = 10000;  // time between waves
+
 
             $(document).ready(function() {
                 drawBG();
@@ -144,10 +114,9 @@
                 mCurrCol = findCol(mMouseX);
 
                 for(var i=0; i < mNumCubes; i++) {
-                    if((cubes[i].row == mCurrRow) || (cubes[i].col == mCurrCol)) {
-                        cubes[i].stage = UP;
-                    } else if( (Math.abs(cubes[i].row - mCurrRow) < 2) || (Math.abs(cubes[i].col - mCurrCol) < 2) ) {
-                        cubes[i].stage = MID;
+                    if((cubes[i].row == mCurrRow) && (cubes[i].col == mCurrCol)) {
+                        cubes[i].startTime = new Date().getTime();
+                        cubes[i].animStyle = POP;
                     } else {
                         cubes[i].stage = DOWN;
                     }
@@ -187,6 +156,8 @@
             function tick() {
                 requestAnimFrame(tick);
                 draw();
+
+                startWave();
             }
 
             function draw() {
@@ -234,6 +205,34 @@
                 }
             }
 
+            function startWave() {
+                var currTime = new Date().getTime();
+
+                if(waveStartTime == 0) {
+                    waveStartTime = currTime;
+                }
+
+                var deltaTime = currTime - waveStartTime;
+
+                if(deltaTime > wavePeriod) {
+                    // start a new wave
+                    waveStartTime = currTime;
+                } else if(deltaTime < wavePeriod) {
+                    setWaveCol(currTime, deltaTime);
+                }
+            }
+
+            function setWaveCol(current, delta){
+                var c = Math.floor(delta * mNumCols / waveDuration);
+
+                for(var i=0; i < mNumCubes; i++) {
+                    if(cubes[i].col == c) {
+                        cubes[i].startTime = current;
+                        cubes[i].animStyle = WAVE;
+                    }
+                }
+            }
+
             function Cube(x, y, z, r, c) {
                 this.centX = x;
                 this.centY = y;
@@ -243,12 +242,34 @@
                 this.col = c;
 
                 this.stage = DOWN;
+
+                // start time for raise/drop animations
+                this.startTime = 0;
+                this.animStyle = NONE;
             }
 
             Cube.prototype.draw = function() {
                 mvPushMatrix();
 
                 mat4.identity(mvMatrix);
+
+                var popHeight = 0;
+
+                if((this.animStyle == POP) || (this.animStyle == WAVE) ) {
+                    var currTime = new Date().getTime();
+                    var deltaTime = currTime - this.startTime;
+
+                    popHeight = maxHeight * (1 - deltaTime / popTime);
+
+                    if(deltaTime > popTime) {
+                        this.stage = DOWN;
+                        this.animStyle = NONE;
+                    } else if(deltaTime < popTime/2) {
+                        this.stage = UP;
+                    } else{
+                        this.stage = MID;
+                    }
+                }
 
                 switch(this.stage) {
                     case DOWN:
@@ -260,20 +281,30 @@
                         gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, whiteColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                         break;
                     case MID:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.25]);
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
                         gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
                         gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-                        gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        if(this.animStyle == WAVE) {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, lightOrangeColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        } else {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        }
                         break;
                     case UP:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.5]);
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
                         gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
                         gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-                        gl.bindBuffer(gl.ARRAY_BUFFER, darkBlueColorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        if(this.animStyle == WAVE) {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, darkOrangeColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        } else {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, darkBlueColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        }
                         break;
                 }
 
@@ -293,7 +324,7 @@
                         gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                         break;
                     case MID:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.25]);
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
                         gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
                         gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
@@ -301,7 +332,7 @@
                         gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                         break;
                     case UP:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + 0.5]);
+                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
                         gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
                         gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
@@ -313,79 +344,6 @@
                 setMatrixUniforms();
                 gl.lineWidth(1);
                 gl.drawArrays(gl.LINES, 0, frameVectorBuffer.numItems);
-
-                mvPopMatrix();
-            }
-
-            function Rect(x, y, z, w, h) {
-                this.rectVectorBuffer;
-                this.rectVertices;
-
-                this.rectColorBuffer;
-                this.rectColors;
-
-                this.centX = x;
-                this.centY = y;
-                this.centZ = z;
-                this.rectW = w;
-                this.rectH = h;
-
-                this.initRect(w, h);
-            }
-
-            Rect.prototype.initRect = function(w, h) {
-                this.rectVertices = [
-                     w/2,  h/2, 0,
-                    -w/2,  h/2, 0,
-                    -w/2,  h/2, 0,
-                    -w/2, -h/2, 0,
-                    -w/2, -h/2, 0,
-                     w/2, -h/2, 0,
-                     w/2, -h/2, 0,
-                     w/2,  h/2, 0
-                ];
-
-                this.rectVectorBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectVectorBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.rectVertices), gl.STATIC_DRAW);
-
-                this.rectVectorBuffer.itemSize = 3;
-                this.rectVectorBuffer.numItems = 8;
-
-                this.rectColors = [
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0,
-                     1.0, 1.0, 1.0, 1.0
-                ];
-
-                this.rectColorBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectColorBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.rectColors), gl.STATIC_DRAW);
-
-                this.rectColorBuffer.itemSize = 4;
-                this.rectColorBuffer.numItems = 8;
-            }
-
-            Rect.prototype.draw = function() {
-                mvPushMatrix();
-
-                mat4.identity(mvMatrix);
-                mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ]);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectVectorBuffer);
-                gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, this.rectVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, this.rectColorBuffer);
-                gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, this.rectColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-                setMatrixUniforms();
-
-                gl.drawArrays(gl.LINES, 0, this.rectVectorBuffer.numItems);
 
                 mvPopMatrix();
             }
@@ -746,6 +704,120 @@
 
                 lightBlueColorBuffer.itemSize = 4;
                 lightBlueColorBuffer.numItems = 36;
+
+
+                var dark_orange = [
+                     1.00, 0.54, 0.00, 1.0,  // front
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,  // back
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,  // top
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,  // right
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,  // bottom
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,  // left
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0,
+                     1.00, 0.54, 0.00, 1.0
+                ];
+                darkOrangeColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, darkOrangeColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dark_orange), gl.STATIC_DRAW);
+
+                darkOrangeColorBuffer.itemSize = 4;
+                darkOrangeColorBuffer.numItems = 36;
+
+
+                var light_orange = [
+                     1.00, 0.71, 0.10, 1.0,  // front
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,  // back
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,  // top
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,  // right
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,  // bottom
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,  // left
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0,
+                     1.00, 0.71, 0.10, 1.0
+                ];
+                lightOrangeColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, lightOrangeColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(light_orange), gl.STATIC_DRAW);
+
+                lightOrangeColorBuffer.itemSize = 4;
+                lightOrangeColorBuffer.numItems = 36;
 
 
                 var frameColor = [
