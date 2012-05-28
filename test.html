@@ -78,26 +78,24 @@
             var mNumCols;
             var mNumRect;
 
-            var mMouseX;
-            var mMouseY;
             var mCurrRow;
             var mCurrCol;
 
-            var mPrevTime = 0;
-
+            // pop-up position
             var DOWN = 0;
             var MID = 1;
             var UP = 2;
 
+            // pop-up styles
             var NONE = 0;
             var POP = 1;
-            var WAVE = 2
+            var WAVE = 2;
 
             var popTime = 500;       // time in milliseconds a cube stays highlighted after being popped.
             var maxHeight = 0.5;     // the highest a cube is moved up when popped or waved.
 
             var waveStartTime = 0;
-            var waveDuration = 1000;  // time it takes for the wave to cross the screen
+            var waveDuration = 2000;  // time it takes for the wave to cross the screen
             var waveTime = 500;      // time a cube stays highlighted after being waved
             var wavePeriod = 10000;  // time between waves
 
@@ -107,11 +105,8 @@
             });
 
             $(document).mousemove(function(event) {
-                mMouseX = event.pageX;
-                mMouseY = event.pageY;
-
-                mCurrRow = findRow(mMouseY);
-                mCurrCol = findCol(mMouseX);
+                mCurrRow = findRow(event.pageY);
+                mCurrCol = findCol(event.pageX);
 
                 for(var i=0; i < mNumCubes; i++) {
                     if((cubes[i].row == mCurrRow) && (cubes[i].col == mCurrCol)) {
@@ -124,11 +119,11 @@
             });
 
             function findRow(y) {
-                return Math.floor(mMouseY*mNumRows/mHeight);
+                return Math.floor(y*mNumRows/mHeight);
             }
 
             function findCol(x) {
-                return Math.floor(mMouseX*mNumCols/mWidth);
+                return Math.floor(x*mNumCols/mWidth);
             }
 
             function drawBG() {
@@ -157,6 +152,7 @@
                 requestAnimFrame(tick);
                 draw();
 
+                // beat();
                 startWave();
             }
 
@@ -208,17 +204,16 @@
             function startWave() {
                 var currTime = new Date().getTime();
 
-                if(waveStartTime == 0) {
-                    waveStartTime = currTime;
-                }
-
                 var deltaTime = currTime - waveStartTime;
 
                 if(deltaTime > wavePeriod) {
                     // start a new wave
                     waveStartTime = currTime;
-                } else if(deltaTime < wavePeriod) {
-                    setWaveCol(currTime, deltaTime);
+
+                    for(var i=0; i <  mNumCubes; i++) {
+                        cubes[i].startTime = currTime + (cubes[i].col * waveDuration/mNumCols);
+                        cubes[i].animStyle = WAVE;
+                    }
                 }
             }
 
@@ -256,48 +251,33 @@
                 var popHeight = 0;
 
                 if((this.animStyle == POP) || (this.animStyle == WAVE) ) {
-                    var currTime = new Date().getTime();
-                    var deltaTime = currTime - this.startTime;
+                    var deltaTime = new Date().getTime() - this.startTime;
 
-                    popHeight = maxHeight * (1 - deltaTime / popTime);
+                    // determine where along the wave the cube is.
+                    popHeight = maxHeight/2 * Math.sin(Math.PI * (deltaTime - waveTime/4) / (waveTime/2)) + maxHeight/2;
 
                     if(deltaTime > popTime) {
                         this.stage = DOWN;
                         this.animStyle = NONE;
-                    } else if(deltaTime < popTime/2) {
+                        popHeight = 0;
+                    }else if(deltaTime < 0) {
+                        //popHeight = 0;
+                        // do nothing
+                    } else if(popHeight > maxHeight/2) {
                         this.stage = UP;
                     } else{
                         this.stage = MID;
                     }
                 }
 
+                // draw the cubes
+                mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
+                gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+                // determine the color of the cube based on height and type of pop-up.
                 switch(this.stage) {
-                    case DOWN:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ]);
-                        gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-                        gl.bindBuffer(gl.ARRAY_BUFFER, whiteColorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, whiteColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        break;
-                    case MID:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
-                        gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-                        if(this.animStyle == WAVE) {
-                            gl.bindBuffer(gl.ARRAY_BUFFER, lightOrangeColorBuffer);
-                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        } else {
-                            gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
-                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        }
-                        break;
                     case UP:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
-                        gl.bindBuffer(gl.ARRAY_BUFFER, vectorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, vectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
                         if(this.animStyle == WAVE) {
                             gl.bindBuffer(gl.ARRAY_BUFFER, darkOrangeColorBuffer);
                             gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -306,40 +286,34 @@
                             gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                         }
                         break;
+                    case MID:
+                        if(this.animStyle == WAVE) {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, lightOrangeColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        } else {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        }
+                        break;
+                    case DOWN:
+                        gl.bindBuffer(gl.ARRAY_BUFFER, whiteColorBuffer);
+                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, whiteColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        break;
                 }
 
                 setMatrixUniforms();
 
                 gl.drawArrays(gl.TRIANGLES, 0, vectorBuffer.numItems);
 
-
+                // draw the cube borders
                 mat4.identity(mvMatrix);
-                switch(this.stage) {
-                    case DOWN:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ]);
-                        gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-                        gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        break;
-                    case MID:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
-                        gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
+                gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-                        gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        break;
-                    case UP:
-                        mat4.translate(mvMatrix, [this.centX, this.centY, this.centZ + popHeight]);
-                        gl.bindBuffer(gl.ARRAY_BUFFER, frameVectorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexPositionAttribute, frameVectorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-                        gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
-                        gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        break;
-                }
+                gl.bindBuffer(gl.ARRAY_BUFFER, frameColorBuffer);
+                gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
                 setMatrixUniforms();
                 gl.lineWidth(1);
