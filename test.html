@@ -90,6 +90,7 @@
             var NONE = 0;
             var POP = 1;
             var WAVE = 2;
+            var DEFAULT = 3;
 
             var popTime = 500;       // time in milliseconds a cube stays highlighted after being popped.
             var maxHeight = 0.5;     // the highest a cube is moved up when popped or waved.
@@ -260,9 +261,6 @@
                         this.stage = DOWN;
                         this.animStyle = NONE;
                         popHeight = 0;
-                    }else if(deltaTime < 0) {
-                        //popHeight = 0;
-                        // do nothing
                     } else if(popHeight > maxHeight/2) {
                         this.stage = UP;
                     } else{
@@ -278,21 +276,21 @@
                 // determine the color of the cube based on height and type of pop-up.
                 switch(this.stage) {
                     case UP:
-                        if(this.animStyle == WAVE) {
-                            gl.bindBuffer(gl.ARRAY_BUFFER, darkOrangeColorBuffer);
-                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        } else {
+                        if(this.animStyle == POP) {
                             gl.bindBuffer(gl.ARRAY_BUFFER, darkBlueColorBuffer);
                             gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, darkBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        } else {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, whiteColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, whiteColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                         }
                         break;
                     case MID:
-                        if(this.animStyle == WAVE) {
-                            gl.bindBuffer(gl.ARRAY_BUFFER, lightOrangeColorBuffer);
-                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightOrangeColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                        } else {
+                        if(this.animStyle == POP) {
                             gl.bindBuffer(gl.ARRAY_BUFFER, lightBlueColorBuffer);
                             gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, lightBlueColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                        } else {
+                            gl.bindBuffer(gl.ARRAY_BUFFER, whiteColorBuffer);
+                            gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, whiteColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
                         }
                         break;
                     case DOWN:
