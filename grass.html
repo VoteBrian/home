@@ -172,7 +172,7 @@
 
             function initGL() {
                 try {
-                    gl = mCanvas.getContext('experimental-webgl', { antialias:false, stencil:true });
+                    gl = mCanvas.getContext('experimental-webgl')
                     gl.canvas.width = mWidth;
                     gl.canvas.height = mHeight;
 
@@ -227,6 +227,25 @@
                         cubes[i].animStyle = WAVE;
                     }
                 }
+            }
+
+            function Grass(x, y, z) {
+                var this.numSegments = 4;
+                var this.centX = x;
+                var this.centY = y;
+                var this.centZ = z;
+
+                var this.segHeight = [];
+                var this.segWidth = [];
+                var this.segAngle = [];
+
+                var this.foldAngle = deg2rad(10);
+                var this.bladeDepth = 0.2;
+            }
+
+            // build the vector position buffer
+            Grass.prototype.init = function() {
+                
             }
 
             function Cube(x, y, z, r, c) {
@@ -314,10 +333,14 @@
                 gl.vertexAttribPointer(mShaderProgram.vertexColorAttribute, frameColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
                 setMatrixUniforms();
-                gl.lineWidth(2);
+                gl.lineWidth(1);
                 gl.drawArrays(gl.LINES, 0, frameVectorBuffer.numItems);
 
                 mvPopMatrix();
+            }
+
+            function deg2Rad(deg) {
+                return deg * Math.PI / 180;
             }
 
             function initShaders() {
@@ -793,45 +816,45 @@
 
 
                 var frameColor = [
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
-
-
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
-
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
-
-
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
-
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
-                     0.0,  0.0,  0.0,  0.8,
-                     0.0,  0.0,  0.0,  0.8,
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
+
+                     0.0,  0.0,  0.0, 1.0,
+                     0.0,  0.0,  0.0, 1.0,
 
                 ];
                 frameColorBuffer = gl.createBuffer();

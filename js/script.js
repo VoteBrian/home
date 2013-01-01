@@ -34,7 +34,7 @@ function drawCircles() {
         ctx.canvas.width = w;
         ctx.canvas.height = h;
 
-        ctx.fillStyle = "rgba(244, 244, 244, 1.0)";
+        ctx.fillStyle = "rgba(250, 250, 250, 1.0)";
         ctx.fillRect(0, 0, w, h);
 
         cntX = 0;
