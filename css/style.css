@@ -1,27 +1,33 @@
-html { font-size: 100%; overflow-y: scroll; }
-body { color: #000000; background-color: #F4F4F4; padding: 0em 10% 5em 10%; margin: 0em; font-family: sans-serif, Arial;  }
+html { overflow-y: scroll; }
+body { color: #000000; background-color: #F4F4F4; margin: 0em; font-family: sans-serif, Arial; padding: 0 10% 0 10%; }
 
 canvas { position:fixed; top:0px; left:0px; z-index: -1; display: block; opacity: 1.0; }
 
-#header { color: #F4F4F4; background-color: #323232; padding: 1em 1em 1em 1em; z-index: 100; font-family: Arial Narrow; }
-#content { background-color: #F0F0F0; padding: 1em; }
+#header { color: #33B5E5; background-color: #323232; padding: 0.5em 1em 0.5em 1em; z-index: 100;
+          font-family: Arial Narrow; text-align: right; }
 
-#name { font-size: 3em; }
-#contact_info { font-size: 1em; }
+#wrapper { background-color: #FFFFFF; padding: 1em 0 1em 0; margin: 0; opacity: 0.9; }
 
-.wrapper { padding: 0 2px 2px 0; margin-bottom: 1em; background-color: #A4A4A4; }
-.section { padding: 0; background-color: #ffffff; }
-.section_title { font-size: 1.75em; padding: 0em 0.5em 0em 0.5em; margin-bottom: 1em; background-color: #9BA29A; }
-.subsection { padding: 0 1em 1em 1em; }
-.subsection_title { font-size: 1.25em; float: left; }
-.subsection_dates { font-style: italic; float: right; }
-.subsection_content { font-size: 1.15em; padding: 0 0 0 0; }
-.subsection_item { font-size: 1.15em; padding: 0 0 0.5em 0; }
-.subsection_item_title { font-weight: bold; }
+#sidebar { float: left;  width: 15%; text-align: right; padding: 0.5em 0em 0.5em 0em;
+           font-family: Arial Narrow; font-size: 1.5em; }
+    .selection { padding: 0.25em 0.25em 0.25em 0em; }
+    .selection:hover { color: #FFFFFF; background-color: #43C5F5; }
 
-.clear { clear: both; }
+    .highlight { color: #FFFFFF; background-color: #33B5E5; }
 
-hr { background-color: #33B5E5; color: #33B5E5; border-color: #33B5E5; }
+#content { margin-left: 15%; padding: 0.75em 5% 5% 2%; border-left: solid; border-color: #33B5E5; }
+    .section_title { display: none; }
+    .subsection { padding-bottom: 1em; }
+    .subsection_title { font-size: 1.5em;}
+    .subsection_item { font-size: 1em;}
+    #projects {  }
+    #resume { display: none; }
+    #samples { display: none; }
+
+#footer { color: #F4F4F4; background-color: #323232; padding: 0.1em 0em 0.1em 0em;
+          font-family: Arial Narrow; text-align: center; font-size: 0.75em; }
+
+hr { border-color: #33B5E5; padding: 0em; margin: 0em 0.25em 0em 1em; }
 
 a:link { color: #33B5E5; text-decoration: none; }
 a:visited { color: #33B5E5; text-decoration: none; }

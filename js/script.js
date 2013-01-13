@@ -81,3 +81,31 @@ function drawCircles() {
         }
     }
 }
+
+function switchSection(section) {
+    if(section == 'projects') {
+        $('#projects').fadeTo(100,0.9);
+        $('#resume').fadeOut(100);
+        $('#samples').fadeOut(100);
+
+        $('#nav_projects').addClass("highlight");
+        $('#nav_resume').removeClass('highlight');
+        $('#nav_samples').removeClass('highlight');
+    } else if(section == 'resume') {
+        $('#projects').fadeOut(100);
+        $('#resume').fadeTo(100,0.9);
+        $('#samples').fadeOut(100);
+
+        $('#nav_projects').removeClass('highlight');
+        $('#nav_resume').addClass("highlight");
+        $('#nav_samples').removeClass('highlight');
+    } else if(section == 'samples') {
+        $('#projects').fadeOut(100);
+        $('#resume').fadeOut(100);
+        $('#samples').fadeTo(100,0.9);
+
+        $('#nav_projects').removeClass('highlight');
+        $('#nav_resume').removeClass('highlight');
+        $('#nav_samples').addClass("highlight");
+    }
+}
