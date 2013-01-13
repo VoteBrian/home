@@ -20,7 +20,8 @@ canvas { position:fixed; top:0px; left:0px; z-index: -1; display: block; opacity
     .subsection { padding-bottom: 1em; }
     .subsection_title { font-size: 1.5em;}
     .subsection_item { font-size: 1em;}
-    .subsection_item img { padding: 0.5em 0 0.5em 0; display: block; margin: auto; opacity: 1; }
+    .subsection_item img { padding: 0.5em 0 0.5em 0; display: block; margin: auto; }
+    .subsection_item .chart { padding: 0.5em 0 0.5em 0; display: block; margin: auto; }
     #projects {  }
     #resume { display: none; }
     #samples { display: none; }
