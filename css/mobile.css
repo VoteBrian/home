@@ -1,10 +1,10 @@
 html { font-size: 100%; overflow-y: scroll; }
-body { color: #323232; background-color: #F4F4F4; margin: 0em; font-family: Roboto, sans-serif; font-weight: 400; }
+body { color: #323232; background-color: #F4F4F4; margin: 0em; font-family: Roboto, sans-serif; }
 
 canvas { display: none; }
 
-#header { color: #33B5E5; background-color: #323232; padding: 0.5em 1em 0.5em 1em; z-index: 100;
-          font-weight: 200; text-align: right; font-size: 3em; }
+#header { color: #33B5E5; background-color: #323232; padding: 10px 20px 10px 10px; z-index: 100;
+          text-align: left; font-size: 3em; font-weight: 100; }
 
 #wrapper { background-color: #FFFFFF; padding: 1em 0 1em 0; margin: 0; opacity: 0.95; }
 
